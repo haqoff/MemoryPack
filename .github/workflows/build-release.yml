@@ -13,24 +13,11 @@ on:
         type: boolean
 
 jobs:
-  update-packagejson:
-    uses: Cysharp/Actions/.github/workflows/update-packagejson.yaml@main
-    with:
-      file-path: |
-        ./src/MemoryPack.Unity/Assets/MemoryPack.Unity/package.json
-      tag: ${{ inputs.tag }}
-      dry-run: ${{ inputs.dry-run }}
-      push-tag: false
-
   build-dotnet:
-    needs: [update-packagejson]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - run: echo ${{ needs.update-packagejson.outputs.sha }}
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.update-packagejson.outputs.sha }}
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       # pack nuget
       - run: dotnet build -c Release -p:Version=${{ inputs.tag }}
@@ -44,7 +31,7 @@ jobs:
 
   # release
   create-release:
-    needs: [update-packagejson, build-dotnet]
+    needs: [build-dotnet]
     uses: Cysharp/Actions/.github/workflows/create-release.yaml@main
     with:
       dry-run: ${{ inputs.dry-run }}
@@ -54,9 +41,3 @@ jobs:
       release-upload: false
     secrets: inherit
 
-  cleanup:
-    if: ${{ needs.update-packagejson.outputs.is-branch-created == 'true' }}
-    needs: [update-packagejson, create-release]
-    uses: Cysharp/Actions/.github/workflows/clean-packagejson-branch.yaml@main
-    with:
-      branch: ${{ needs.update-packagejson.outputs.branch-name }}
